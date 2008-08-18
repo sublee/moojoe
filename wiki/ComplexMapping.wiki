@@ -35,3 +35,78 @@ var Person = new MooJoe.Class({
  * `homepage` 속성은 `a`의 `href` 속성에 맵핑됩니다.
 
 배열로 만든 맵핑룰의 첫 번째 원소는 CSS 셀렉터입니다. 나머지 원소 중 문자열은 맵핑할 속성, 클래스는 타입이 됩니다. 맵핑할 엘리먼트 속성은 !MooTools의 `Element.get()` 메소드가 지원하는 속성들과 동일합니다.
+
+--------------
+
+{{{
+var person = $$('.person')[0].toObject(Person);
+
+person.get('name').set('first', 'Haesam'); // 이름을 Heungsub에서 Haesam으로 변경
+person.set('age', person.get('age') + 1); // 나이 한 살 더 먹기
+
+// ## Detached Object
+
+var new_name = new Name('Dachimawa', 'Lee');
+
+value_of(new_name.attached).should_be_false();
+
+person.set('name', new_name);
+value_of(person.get('name').get('first')).should_be('Dachimawa');
+
+value_of(new_name.attached).should_be_true();
+
+var person = $$('.person')[0].toObject(Person);
+person.detach(); // 연결 끊기
+person.get('name').set('last', 'Kim'); // DOM은 갱신되지 않습니다.
+person.attach($$('.person')[0]); // 다시 연결하기. 이 때 DOM이 일괄 갱신됩니다.
+
+// Method
+
+var Person = new MooJoe.Class({
+    name: ['.name', Name],
+    age: ['.age', Number, 'html'],
+    picture: ['img', 'src'],
+    homepage: ['a', 'href'],
+
+    older: function()  {
+        return this.set('age', this.get('age') + 1);
+    }
+});
+
+var x = person.get('age');
+person.older();
+
+value_of(person.get('age')).should_be(x + 1);
+
+}}}
+
+--------------
+
+HTML:
+{{{
+<label for="user-name">이름</label>: <input type="text" id="user-name" name="user_name" />
+}}}
+
+JS:
+{{{
+var Label = new MooJoe.Class({
+    target: ['', 'for', $],
+    text: ''
+});
+
+var label = $$('label[for=user-name]')[0].toObject(Label);
+
+value_of(label.get('target')).should_be($('user-name'));
+value_of(label.get('text')).should_be('이름');
+}}}
+
+----------------
+
+{{{
+
+var Family = new MooJoe.Class({
+    head: ['.head .person', Person],
+    members: ['.members .person', [Person]]
+});
+
+}}}
