@@ -1,0 +1,43 @@
+HTML 엘리먼트의 `innerHTML`이 아닌 `src`나 `href` 같은 속성에 맵핑 시키거나 `String` 이외의 타입/클래스에 맵핑시키는 방법에 대해 알아보겠습니다. 간단한 작업을 원하실 때는 SimpleMapping을 봐주세요.
+
+예제는 [http://alankang.tistory.com/137 강규영 님의 JOE 포스팅]을 참고했습니다. 다음 HTML 코드를 봅시다.
+
+{{{
+<div class="person">
+  <p class="name"><span class="first">Heungsub</span> <span class="last">Lee</span></p>
+  <p class="age">20</p>
+  <p><img src="http://farm4.static.flickr.com/3222/2767435491_a16ffa9934_s.jpg" /></p>
+  <p><a href="http://heungsub.net/">Homepage</a></p>
+</div>
+}}}
+
+`Person` 클래스의 인스턴스를 HTML 엘리먼트로 출력시켰습니다. `Person`은 `name`, `age`, `picture`, `homepage` 속성을 가지고있습니다. 특히 `name` 속성에는 SimpleMapping에 사용된 `Name` 클래스의 인스턴스가 들어가있습니다. 맵핑을 위해 `Name`과 `Person` 클래스를 정의합니다.
+
+{{{
+var Name = new MooJoe.Class({
+    first: '.first',
+    last: '.last'
+});
+
+var Person = new MooJoe.Class({
+    name: ['.name', Name],
+    age: ['.age', Number, 'html'],
+    picture: ['img', 'src'],
+    homepage: ['a', 'href']
+});
+}}}
+
+`Person` 클래스는 `Name` 클래스와 조금 다르게 정의되어있습니다. `Name` 클래스는 맵핑 룰로 단순히 CSS 셀렉터를 사용하는 반면 `Person` 클래스는 배열을 룰로 사용합니다.
+
+ * `name` 속성은 `.name`에 맵핑되고 `Name` 클래스의 인스턴스가 됩니다. 맵핑 속성은 생략되었으므로 기본값인 `html`입니다.
+ * `age` 속성은 `.age`에 맵핑되고 문자열이 아닌 숫자로 변환합니다. 명시적으로 기본 맵핑 속성인 `html`을 적어두었습니다.
+ * `picture` 속성은 `img`의 `src` 속성에 맵핑됩니다.
+ * `homepage` 속성은 `a`의 `href` 속성에 맵핑됩니다.
+
+배열로 만든 맵핑룰의 첫 번째 원소는 CSS 셀렉터입니다. 두 번째나 세 번째 원소의 순서는 어떻게 써도 상관 없습니다. 문자열을 지정할 경우 맵핑 속성으로, 함수를 지정할 경우 통과시킬 함수 또는 생성자로 인식합니다. 맵핑 속성은 !MooTools의 `Element.get()` 메소드가 지원하는 속성들과 동일합니다.
+
+함수 또는 생성자에 통과시킬 때는 첫 번째 인자로 맵핑된 문자열을, 두 번째 인자로 맵핑된 DOM 엘리먼트 객체를 넘깁니다. 참고로 !MooJoe 클래스의 생성자는 첫 번째 인자를 무시하고 두 번째 인자로 DOM 엘리먼트 객체를 받습니다.
+
+{{{
+new SomeClass(undefined, $('...')) == $('...').toObject(SomeClass);
+}}}
