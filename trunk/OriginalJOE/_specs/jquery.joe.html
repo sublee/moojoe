@@ -1,0 +1,397 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ko">
+<head>
+	<title>jquery.joe.spec</title>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<link type="text/css" rel="stylesheet" href="jsspec/JSSpec.css" />
+	<script type="text/javascript" src="jsspec/diff_match_patch.js"></script>
+	<script type="text/javascript" src="jsspec/JSSpec.js"></script>
+	<script type="text/javascript" src="../javascripts/jquery-1.2.6.js"></script>
+	<script type="text/javascript" src="../javascripts/jquery.joe.js"></script>
+</head>
+<body>
+<div id="playground" style="display: none;">
+	<div class="family">
+		<div class="head">
+			<div class="person">
+				<p class="name"><span class="first">DY</span> <span class="last">Kang</span></p>
+				<p><img class="profile" src="http://localhost/dy.jpg" /></p>
+				<p class="age">50</p>
+			</div>
+		</div>
+		<div class="members">
+			<div id="alan" class="person">
+				<p class="name"><span class="first">Alan</span> <span class="last">Kang</span></p>
+				<p><img class="profile" src="http://localhost/alan.jpg" /></p>
+				<p class="age">18</p>
+			</div>
+			<div id="dorothy" class="person">
+				<p class="name"><span class="first">Cate</span> <span class="last">Kim</span></p>
+				<p><img class="profile" src="http://localhost/cate.jpg" /></p>
+				<p class="age">15</p>
+			</div>
+		</div>
+	</div>
+
+	<div id="baby" class="person">
+		<p class="name"><span class="first">Baby</span> <span class="last">Kang</span></p>
+		<p><img class="profile" src="http://localhost/baby.jpg" /></p>
+		<p class="age">1</p>
+	</div>
+</div>
+
+<script id="t_name" type="text/html">
+	<p class="name"><span class="first"><@= first() @></span> <span class="last"><@= last() @></span></p>
+</script>
+
+<script id="t_person" type="text/html">
+	<div id="baby" class="person">
+		<@= name().toHtml() @>
+		<p><img class="profile" src="<@= profile() @>" /></p>
+		<p class="age"><@= age() @></p>
+	</div>
+</script>
+
+<script type="text/javascript">// <![CDATA[
+function defineName() {
+	$.joe.def('Name', {first: '.first', last: '.last'}, $('#t_name').html());
+}
+function definePerson() {
+	defineName();
+	$.joe.def('Person', {name: '.name {{Name}}', profile: '.profile [[src]]', age: '.age {{number}}'}, $('#t_person').html());
+}
+function defineFamily() {
+	definePerson();
+	$.joe.def('Family', {head: '.head .person {{Person}}', members: '.members {{array<Person>}}'});
+}
+
+
+
+describe('Conversion', {
+	'before all': function() {
+		defineFamily();
+	},
+	'before': function() {
+		_backup = $('#playground').html();
+	},
+	'after': function() {
+		$('#playground').html(_backup);
+	},
+
+	'should exported to JSON': function() {
+		var o = $('.family').toObj('Family');
+		var json = {
+			head: {
+				name: {first: 'DY', last: 'Kang'}, 
+				profile: 'http://localhost/dy.jpg',
+				age: 50},
+			members: [
+	          {name: {first: 'Alan', last: 'Kang'}, profile: 'http://localhost/alan.jpg', age: 18},
+	          {name: {first: 'Cate', last: 'Kim'}, profile: 'http://localhost/cate.jpg', age: 15}
+			]
+		};
+		value_of(o.toJson()).should_be(json);
+	},
+	'should created from JSON': function() {
+/*
+		var json = {
+			head: {
+				name: {first: 'DY', last: 'Kang'}, 
+				profile: 'http://localhost/dy.jpg',
+				age: 50},
+			members: [
+	          {name: {first: 'Alan', last: 'Kang'}, profile: 'http://localhost/alan.jpg', age: 18},
+	          {name: {first: 'Cate', last: 'Kim'}, profile: 'http://localhost/cate.jpg', age: 15}
+			]
+		};
+		
+		var o = $.joe.Family.fromJson(json);
+
+		value_of(o.head().age()).should_be(50);
+		value_of(o.members()[1].name().first()).should_be('Cate');
+*/
+	},
+	'should exported to HTML': function() {
+		var o = $('#alan').toObj('Name');
+		value_of(o.toHtml().normalizeHtml().strip()).should_be('<p class="name"><span class="first">Alan</span> <span class="last">Kang</span></p>');
+	}
+})
+
+
+
+describe('Simple mapping', {
+	'before': function() {
+		_backup = $('#playground').html();
+		
+		$.joe.def('Name', {
+			first: '.first',
+			last: '.last',
+			sayYourName: function() {return this.first() + ' ' + this.last();}
+		});
+	},
+	'after': function() {
+		$('#playground').html(_backup);
+	},
+	
+	'should create simple object from element': function() {
+		var o = $('#alan').toObj('Name');
+		value_of(o).should_not_be_undefined();
+		value_of(o).should_not_be_null();
+	},
+
+	'should generated accessor for simple string': function() {
+		var o = $('#alan').toObj('Name');
+
+		// methods
+		value_of(o.sayYourName()).should_be('Alan Kang');
+
+		// getters
+		value_of(o.first()).should_be($('#alan .first').html());
+		value_of(o.last()).should_be($('#alan .last').html());
+
+		// setters
+		o.first('Allen');
+		o.last('King');
+		value_of(o.first()).should_be('Allen');
+		value_of(o.last()).should_be('King');
+	},
+
+	'should map multiple elements': function() {
+		var o = $('.members .name').toObj('Name');
+		value_of(o).should_have_exactly(2, 'items');
+		value_of(o[0].first()).should_be('Alan');
+		value_of(o[1].first()).should_be('Cate');
+	}
+});
+
+
+
+describe('Complex mapping', {
+	'before': function() {
+		_backup = $('#playground').html();
+	},
+	'after': function() {
+		$('#playground').html(_backup);
+	},
+	
+	'should be able to map numbers': function() {
+		$.joe.def('Person', {
+			age: {
+				toObj: function(value) {return Number(value);},
+				toDom: function(value) {return value.toString();},
+				select: function($e) {return $e.find('.age');},
+				get: function($e) {return $e.html();},
+				set: function($e, value) {$e.html(value);}
+			}
+		});
+		
+		var o = $('#alan').toObj('Person');
+		value_of(o.age() + 1).should_be(19);
+		
+		o.age(30);
+		value_of($('#alan .age').html()).should_be('30');
+	},
+	'should be able to omit definitions': function() {
+		$.joe.def('Person', {
+			age: {
+				toObj: function(value) {return Number(value);},
+				toDom: function(value) {return value.toString();}
+			}
+		});
+		
+		var o = $('#alan').toObj('Person');
+		value_of(o.age() + 1).should_be(19);
+		
+		o.age(30);
+		value_of($('#alan .age').html()).should_be('30');
+	},
+	'should interprete type definition': function() {
+		$.joe.def('Person', {
+			age: '.age {{number}}'
+		});
+		
+		var o = $('#alan').toObj('Person');
+		value_of(o.age() + 1).should_be(19);
+		
+		o.age(30);
+		value_of($('#alan .age').html()).should_be('30');
+	},
+	'should interprete attribute definition': function() {
+		$.joe.def('Person', {
+			profile: '.profile [[src]]'
+		});
+		
+		var o = $('#alan').toObj('Person');
+		value_of(o.profile()).should_be('http://localhost/alan.jpg');
+		
+		o.profile('http://localhost/alan.gif');
+		value_of($('#alan .profile').attr('src')).should_be('http://localhost/alan.gif');
+	}
+});
+
+
+
+describe('Composition', {
+	'before all': function() {
+		defineFamily();
+	},
+	'before': function() {
+		_backup = $('#playground').html();
+		family = $('.family').toObj('Family');
+	},
+	'after': function() {
+		$('#playground').html(_backup);
+	},
+	
+	'should support nested object': function() {
+		value_of(family.head().name().first()).should_be('DY');
+
+		var baby = $('#baby').toObj('Person');
+		family.head(baby);
+		value_of($('.family .head .person .name .first').html()).should_be('Baby');
+	},
+	
+	'should support array mapping': function() {
+		value_of(family.members().length).should_be(2);
+		value_of(family.members()[0].name().first()).should_be('Alan');
+		value_of(family.members()[1].name().first()).should_be('Cate');
+
+		var baby = $('#baby').toObj('Person');
+		family.members([baby]);
+		value_of($('.family .members').children().length).should_be(1);
+		value_of($('.family .members .person:first-child .age').html()).should_be(1);
+	},
+
+	'should support array operations (insert)': function() {
+		family.insertMembers(1, new $.joe.Person(new $.joe.Name('Bart', 'Simpson'), 'http://localhost/bart.jpg', 10));
+		value_of(family.members().length).should_be(3);
+		value_of(family.members()[1].name().first()).should_be('Bart');
+	},
+	
+	'should support array operations (delete)': function() {
+		family.deleteMembers(0);
+		value_of(family.members().length).should_be(1);
+		value_of(family.members()[0].name().first()).should_be('Cate');
+	},
+	
+	'should support array operations (append)': function() {
+		family.appendMembers(new $.joe.Person(new $.joe.Name('Bart', 'Simpson'), 'http://localhost/bart.jpg', 10));
+		value_of(family.members().length).should_be(3);
+		value_of(family.members()[2].name().first()).should_be('Bart');
+	},
+	
+	'should support array operations (prepend)': function() {
+		family.prependMembers(new $.joe.Person(new $.joe.Name('Bart', 'Simpson'), 'http://localhost/bart.jpg', 10));
+		value_of(family.members().length).should_be(3);
+		value_of(family.members()[0].name().first()).should_be('Bart');
+	},
+	
+	'should support array operations (replace)': function() {
+		family.replaceMembers(0, new $.joe.Person(new $.joe.Name('Bart', 'Simpson'), 'http://localhost/bart.jpg', 10));
+		value_of(family.members().length).should_be(2);
+		value_of(family.members()[0].name().first()).should_be('Bart');
+	}
+});
+
+
+
+describe('Attach and Detach', {
+	'before all': function() {
+		defineFamily();
+	},
+	'before': function() {
+		_backup = $('#playground').html();
+	},
+	'after': function() {
+		$('#playground').html(_backup);
+	},
+
+	'should be able to create detached object': function() {
+		var o = new $.joe.Name('Alan', 'Kang');
+		value_of(o.isAttached()).should_be_false();
+		value_of(o.first()).should_be('Alan');
+
+		o.first('Allen');
+		value_of(o.first()).should_be('Allen');
+	},
+	'should allow detach/attach': function() {
+		var o = $('#alan').toObj('Name');
+		value_of(o.isAttached()).should_be_true();
+		
+		o.detach();
+		value_of(o.isAttached()).should_be_false();
+
+		o.attach($('#alan'));
+		value_of(o.isAttached()).should_be_true();
+	},
+	'should not change DOM if an object is detached': function() {
+		var o = $('#alan').toObj('Name');
+		o.detach();
+		o.first('Allen');
+		
+		value_of(o.first()).should_be('Allen');
+		value_of($('#alan .first').html()).should_not_be(o.first());
+	},
+	'should change DOM as usual, when an object is attached again': function() {
+		var o = $('#alan').toObj('Name');
+		o.detach();
+		o.attach($('#alan'));
+		o.first('Allen');
+		
+		value_of($('#alan .first').html()).should_be(o.first());
+	},
+	'should synchronize updated properties, when an object is attached again': function() {
+		var o = $('#alan').toObj('Name');
+		o.detach();
+		o.first('Allen');
+		o.attach($('#alan'));
+		
+		value_of($('#alan .first').html()).should_be(o.first());
+	},
+	'should attach and detach composited objects at once': function() {
+		var o = $('.family').toObj('Family');
+		o.detach();
+		
+		value_of(o.head().isAttached()).should_be_false();
+		value_of(o.members()[0].isAttached()).should_be_false();
+		value_of(o.members()[1].name().isAttached()).should_be_false();
+
+		o.attach($('.family'));
+		value_of(o.head().isAttached()).should_be_true();
+		value_of(o.members()[0].isAttached()).should_be_true();
+		value_of(o.members()[1].name().isAttached()).should_be_true();
+	},
+	'should support composited objects': function() {
+		var o = $('.family').toObj('Family');
+		o.detach();
+		
+		var allen = new $.joe.Person(new $.joe.Name('Allen', 'King'), 'http://localhost/allen.jpg', 13);
+		o.members().push(allen);
+		o.attach($('.family'));
+		
+		value_of(o.members().length).should_be(3);
+		value_of(o.members()[2].name().first()).should_be('Allen');
+	},
+	'should support array operations': function() {
+		var o = $('.family').toObj('Family');
+		
+		o.detach();
+		o.insertMembers(1, new $.joe.Person(new $.joe.Name('Bart', 'Simpson'), 'http://localhost/bart.jpg', 10));
+		o.deleteMembers(0);
+		o.appendMembers(new $.joe.Person(new $.joe.Name('Lisa', 'Simpson'), 'http://localhost/lisa.jpg', 5));
+		o.prependMembers(new $.joe.Person(new $.joe.Name('Maggie', 'Simpson'), 'http://localhost/maggie.jpg', 2));
+		o.replaceMembers(2, new $.joe.Person(new $.joe.Name('Homer', 'Simpson'), 'http://localhost/homer.jpg', 40));
+		
+		value_of(o.members().length).should_be(4);
+		value_of(o.members()[0].name().first()).should_be('Maggie');
+		value_of(o.members()[1].name().first()).should_be('Bart');
+		value_of(o.members()[2].name().first()).should_be('Homer');
+		value_of(o.members()[3].name().first()).should_be('Lisa');
+		
+		o.attach($('.family'));
+		value_of(o.members().length).should_be(4);
+	}
+});
+// ]]></script>
+</body>
+</html>
