@@ -1,85 +1,84 @@
-var Name, names, Person, person;
+//var Name, names, Person, person;
 
-describe('SimpleMapping', {
+describe('DefineClass', {
 
 	'should define new class': function() {
 		Name = new MooJoe.Class({
 			first: '.first',
 			last: '.last'
+		}, {
+			'get korean name': function() {
+				return '{last}, {first}'.substitute(this.properties);
+			},
+			'get english name': function() {
+				return '{first} {last}'.substitute(this.properties);
+			}
 		});
 
-		value_of($type(Name)).should_be('class');
-	},
-
-	'should return mapped object': function() {
-		names = $$('#names p.name').toObject(Name);
-
-		value_of(names.length).should_be($('names').getChildren().length);
-	},
-
-	'should return property': function() {
-		value_of(names[0].first).should_be('Heungsub');
-		value_of(names[0].get('first')).should_be(names[0].first);
-
-		value_of(names[0].get('first')).should_be('Heungsub');
-		value_of(names[0].get('last')).should_be('Lee');
-
-		value_of(names[1].get('first')).should_be('Chaeyeong');
-		value_of(names[1].get('last')).should_be('Han');
-	},
-
-	'should change property': function() {
-		names[0].set('first', 'Jocker');
-		value_of(names[0].get('first')).should_be('Jocker');
-	},
-
-	'should change dom at called setter': function() {
-		value_of(names[0].element.getElement('.last').get('html'))
-			.should_be('Lee');
-
-		names[0].set('last', 'Hamster');
-
-		value_of(names[0].element.getElement('.last').get('html'))
-			.should_be('Hamster');
+		value_of(Class.type(Name)).should_be_true();
 	}
 });
 
-describe('ComplexMapping', {
+describe('DetachedObject', {
 
-	'before all': function() {
-		Person = new MooJoe.Class({
-			name: ['.name', Name],
-			age: ['.age', Number, 'html'],
-			birthday: ['.age', 'title', Date],
-			picture: ['.picture', String, 'src']
-		});
+	'should return detached object': function() {
+		new_name = new Name('Dachimawa', 'Lee');
+		value_of(new_name.isAttached()).should_be_false();
 
-		person = $('person').toObject(Person);
+		value_of(new_name.get('first')).should_be('Dachimawa');
+		value_of(new_name.get('last')).should_be('Lee');
 	},
 
-	'should return property': function() {
-		value_of(person.get('age')).should_be(18);
-		value_of($type(person.get('age'))).should_be('number');
+	'should call getter': function() {
+		value_of(new_name.get('korean name')).should_be('Lee, Dachimawa');
+		value_of(new_name.get('english name')).should_be('Dachimawa Lee');
+	}
+});
 
-		value_of(person.get('picture')).should_be('heungsub.png');
-		value_of(person.get('picture')).should_not_be('');
+describe('AttachedObject', {
+
+	'should be empty': function() {
+		empty_name = new Name();
+
+		value_of(empty_name.isEmpty).should_be_true();
 	},
 
-	'should return property as object': function() {
-		value_of($type(person.get('birthday'))).should_be('date');
+	'should attach to element': function() {
+		value_of($$('#names .name')[1].getFirst().get('html')
+		).should_be('Chaeyeong');
 
-		x = person.get('birthday');
+		new_name.attach($$('#names .name')[1]);
 
-		value_of(person.get('birthday').getYear()).should_be(89);
-		value_of(person.get('birthday').getMonth()).should_be(12 - 1);
-		value_of(person.get('birthday').getDate()).should_be(12);
+		value_of($$('#names .name .first')[1].get('html')).should_be(
+			new_name.get('first')
+		);
+	},
 
-		value_of(person.get('name').constructor).should_be(Name);
-		value_of(person.get('name').get('first')).should_be('Heungsub');
-		value_of(person.get('name').get('last')).should_be('Lee');
+	'should be attached': function() {
+		dom_name = $$('#names .name')[0].toObject(Name);
+		empty_name.attach($$('#names .name')[2]);
 
-		person.get('name').set('last', 'Kim');
+		value_of(new_name.isAttached()).should_be_true();
+		value_of(dom_name.isAttached()).should_be_true();
+		value_of(empty_name.isAttached()).should_be_true();
+	},
 
-		value_of(person.get('name').get('last')).should_be('Kim');
+	'should return mapped element': function() {
+		value_of(dom_name.getMapped('first')).should_be(
+			$$('#names .name .first')[0]
+		);
+	},
+
+	'should return same property with DOM': function() {
+		value_of(dom_name.get('first')).should_be('Heungsub');
+	},
+
+	'should change property DOM also': function() {
+		dom_name.set('first', 'Haesam');
+
+		value_of(dom_name.get('first')).should_be('Haesam');
+		value_of($$('#names .name .first')[0].get('html')).should_be(
+			dom_name.get('first')
+		);
 	}
 });
