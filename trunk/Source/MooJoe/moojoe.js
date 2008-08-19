@@ -1,21 +1,24 @@
 MooJoe = {
 	Class: new Class({
 		initialize: function(rules, properties) {
-			rules = $H(rules);
-			var reflections = {};
+			rules = $H(rules), properties = $H(properties);
+
+			var selectors = {};
 
 			rules.each(function(rule, property) {
-				var element, p = 'html', t = String;
+				var selector, p = 'html', t = String;
 
 				if($type(rule) == 'string')
-					element = rule;
+					selector = rule;
 
 				else if($type(rule) == 'array') {
-					element = rule.shift();
+					selector = rule.shift();
 
 					rule = rule.link({
 						type: function(i) {
-							return Native.type(i) || Class.type(i);
+							return Native.type(i)
+								|| Class.type(i)
+								|| Function.type(i);
 						},
 						property: String.type
 					});
@@ -24,8 +27,15 @@ MooJoe = {
 					if(rule.type) t = rule.type;
 				}
 
-				var ref = reflections[property] = {
-					element: element, property: p, type: t
+				selectors[property] = selector;
+
+				var cast = function(type, value) {
+					if(Native.type(type))
+						return new t(value);
+					else if(Function.type(type))
+						return t(value);
+					else if(MooJoe.Class.type(t))
+						return this.getMapped(property).toObject(type);
 				};
 
 				properties['get ' + property] = function() {
@@ -33,18 +43,20 @@ MooJoe = {
 						return this.properties[property];
 
 					else if(this.isAttached()) {
-						var value = this.getMapped(property).get(ref.property);
+						var value = this.getMapped(property).get(p);
 						if(this.isEmpty) this.set(property, value);
 						return value;
 					}
 				}
 
 				properties['set ' + property] = function(value) {
-					if(this.isAttached())
-						this.getMapped(property).set(ref.property, value);
+					if(!this.isEmpty && this.isAttached())
+						this.getMapped(property).set(p, value);
 
-					return this.properties[property] = value;
+					return this.properties[property]
+						= cast.run([t, value], this);
 				}
+
 			}, this);
 
 			var moojoe_class = new Class({
@@ -86,7 +98,7 @@ MooJoe = {
 						else this.set(property, this.get(property));
 					}, this);
 
-					this.isEmpty = true;
+					this.isEmpty = false;
 
 					return this.element;
 				},
@@ -102,21 +114,40 @@ MooJoe = {
 				}
 			});
 
+			moojoe_class.$isMooJoeClass = true;
+			moojoe_class.type = function(item) {
+				return this === item.$family;
+			}
+
 			moojoe_class.rules = rules;
 			moojoe_class.properties = properties;
 
-			moojoe_class.implement({
+			var methods = {
+				$family: moojoe_class,
+
 				getMapped: function(property) {
-					return this.element.getElement(
-						reflections[property].element
-					);
+					if(selectors[property])
+						return this.element.getElement(selectors[property]);
+					else
+						return this.element;
 				}
+			};
+
+			properties.each(function(value, property) {
+				if(Function.type(value) && !property.test('^[gs]et '))
+					methods[property] = value;
 			});
+
+			moojoe_class.implement(methods);
 
 			return moojoe_class;
 		}
 	})
 };
+
+MooJoe.Class.type = function(item) {
+	return !!item.$isMooJoeClass;
+}
 
 Element.implement({
 	toObject: function(moojoe_class) {
