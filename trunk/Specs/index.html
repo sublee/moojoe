@@ -1,21 +1,26 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
 	<title>MooJoe Specs</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-	<link rel="stylesheet" type="text/css" media="screen" href="Assets/Styles/Specs.css" />
+
 	<script src="../mootools-1.2-core.js" type="text/javascript"></script>
 	<script src="../mootools-1.2-more.js" type="text/javascript"></script>
 	<script type="text/javascript" src="Assets/Scripts/Builder.js"></script>
 	<script type="text/javascript" src="Assets/Scripts/JSSpec.js"></script>
-	<script type="text/javascript" src="Assets/Scripts/DiffMatchPatch.js"></script>
-    <script type="text/javascript" charset="utf-8">
-        Builder.includeType('source');
-        if (!Builder.includeRequest('specs')) Builder.includeType('specs');
-    </script>
+	<script type="text/javascript" src="Assets/Scripts/DiffMatchPatch.js">
+	</script>
+
+	<script type="text/javascript" charset="utf-8">
+		Builder.includeType('source');
+		if (!Builder.includeRequest('specs')) Builder.includeType('specs');
+	</script>
+
+	<link rel="stylesheet" type="text/css" href="Assets/Styles/Specs.css" />
 
 	<style type="text/css">
-		body { padding-top: 400px; padding-left: 20px; }
+		body { padding-left: 20px; }
 
 		body > div { width: 200px; }
 
@@ -48,6 +53,31 @@
 	<p class="age" title="Dec 12, 1989">18</p>
 
 	<p><img class="picture" src="http://farm4.static.flickr.com/3222/2767435491_a16ffa9934_s.jpg" /></p>
+</div>
+
+<div id="family" class="family">
+	<div class="head">
+		<div class="person male">
+			<p class="name">
+				<span class="first">Mungham</span>
+				<span class="last">Hamster</span>
+			</p>
+		</div>
+	</div>
+	<div class="members" title="joined: Jun 22, 2007">
+		<div class="person female">
+			<p class="name">
+				<span class="first">Koko</span>
+				<span class="last">Hamster</span>
+			</p>
+		</div>
+		<div class="person female">
+			<p class="name">
+				<span class="first">Bbori</span>
+				<span class="last">Hamster</span>
+			</p>
+		</div>
+	</div>
 </div>
 
 </body>

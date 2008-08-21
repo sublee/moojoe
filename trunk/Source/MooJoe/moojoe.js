@@ -1,146 +1,167 @@
 MooJoe = {
 	Class: new Class({
 		initialize: function(rules, properties) {
-			rules = $H(rules), properties = $H(properties);
+			properties = $H(properties);
 
-			var selectors = {};
+			rules = $H(rules).map(function(rule, name) {
+				var selector, property = 'html', type = String, plural = false;
 
-			rules.each(function(rule, property) {
-				var selector, p = 'html', t = String;
+				var isType = function(item) {
+					return [Native, Class, Function].some(function(type) {
+						return type.type(item);
+					});
+				}
 
-				if($type(rule) == 'string')
-					selector = rule;
+				if(String.type(rule)) selector = rule;
 
-				else if($type(rule) == 'array') {
+				else if(Array.type(rule)) {
 					selector = rule.shift();
 
 					rule = rule.link({
-						type: function(i) {
-							return Native.type(i)
-								|| Class.type(i)
-								|| Function.type(i);
-						},
-						property: String.type
+						property: String.type,
+						type: function(item) {
+							return isType(item) || (
+								Array.type(item) && isType(item[0])
+							);
+						}
 					});
 
-					if(rule.property) p = rule.property;
-					if(rule.type) t = rule.type;
+					property = rule.property || property;
+					plural = Array.type(rule.type);
+					type = (plural ? rule.type[0] : rule.type) || type;
 				}
 
-				selectors[property] = selector;
-
-				var cast = function(type, value) {
-					if(Native.type(type))
-						return new t(value);
-					else if(Function.type(type))
-						return t(value);
-					else if(MooJoe.Class.type(t))
-						return this.getMapped(property).toObject(type);
+				return {
+					selector: selector,
+					property: property,
+					type: type,
+					plural: plural
 				};
+			});
 
-				properties['get ' + property] = function() {
-					if(this.properties[property])
-						return this.properties[property];
-
-					else if(this.isAttached()) {
-						var value = this.getMapped(property).get(p);
-						if(this.isEmpty) this.set(property, value);
-						return value;
-					}
-				}
-
-				properties['set ' + property] = function(value) {
-					if(!this.isEmpty && this.isAttached())
-						this.getMapped(property).set(p, value);
-
-					return this.properties[property]
-						= cast.run([t, value], this);
-				}
-
-			}, this);
-
-			var moojoe_class = new Class({
+			var mjclass = new Class({
 
 				initialize: function() {
-					this.properties = {};
+					this.properties = $H(), this.attached = [];
+					var parameters = rules.getKeys();
+
 					this.isEmpty = !arguments.length;
 
-					if(Function.type(properties.initialize))
-						properties.initialize.run(arguments, this);
-
-					else {
-						var rule_names = rules.getKeys();
-						$A(arguments).each(function(arg, i) {
-							this.properties[rule_names[i]] = arg;
-						}, this);
-					}
+					$A(arguments).each(function(argument, i) {
+						this.set(parameters[i], argument);
+					}, this);
 				},
 
-				get: function(property) {
-					if(Function.type(properties['get ' + property]))
-						return properties['get ' + property].bind(this)();
-					else
-						return this.properties[property];
-				},
+				attach: function(element) {
+					element = $(element);
 
-				set: function(property, value) {
-					if(Function.type(properties['set ' + property]))
-						return properties['set ' + property].run(value, this);
-					else
-						return this.properties[property] = value;
-				},
+					var old = element.retrieve('attached')
+					if(old) old.detach(element);
 
-				attach: function(element) { // Thanks to xymfonii
-					this.element = $(element);
+					element.store('attached', this);
+
+					this.attached.push(element);
 
 					rules.each(function(rule, property) {
-						if(this.isEmpty) this.get(property);
-						else this.set(property, this.get(property));
+						this.sync(property, this.get(property));
 					}, this);
 
 					this.isEmpty = false;
 
-					return this.element;
+					if(Function.type(this['on attach']))
+						this['on attach'](element);
+
+					return this;
 				},
 
-				detach: function() {
-					var el = this.element;
-					this.element = false;
-					return el;
+				detach: function(element) {
+					if($defined(element)) {
+						element = $(element);
+						element.store('attached', undefined);
+
+						this.attached.erase(element);
+					}
+					else {
+						this.attached.each(function(el) {
+							el.store('attached', undefined);
+						});
+
+						this.attached.empty();
+					}
+
+					return this;
 				},
 
-				isAttached: function() {
-					return Element.type(this.element);
+				sync: function(property, value) {
+					var just_import = !$defined(value) &&
+						this.isEmpty && this.isAttached();
+
+					var rule = rules.get(property);
+
+					this.attached.each(function(element) {
+						if(rule.selector)
+							element = element.getElement(rule.selector);
+
+						if(just_import) this.set(
+							property,
+							element.get(rule.property),
+							just_import
+						);
+
+						else {
+							if(MooJoe.Class.type(rule.type))
+								value.attach(element);
+							else
+								element.set(rule.property, value);
+						}
+
+						if(Function.type(this['on sync']))
+							this['on sync'](element);
+					}, this);
+				},
+
+				get: function(property) {
+					if(Function.type(this['get ' + property]))
+						return this['get ' + property]();
+
+					return this.properties.get(property);
+				},
+
+				set: function(property, value, just_import) {
+					if(Function.type(this['set ' + property]))
+						return this['set ' + property](value);
+
+					else if(rules.has(property) && !just_import)
+						this.sync(property, value);
+
+					this.properties.set(property, value);
+					return this;
+				},
+
+				isAttached:	function(element) {
+					if($defined(element))
+						return this.attached.contains($(element))
+					else
+						return !! this.attached.length;
 				}
 			});
 
-			moojoe_class.$isMooJoeClass = true;
-			moojoe_class.type = function(item) {
+			var extension = { $family: mjclass };
+			properties.each(function(value, name) {
+				if(Function.type(value)) this[name] = value;
+			}, extension);
+
+			mjclass.implement(extension);
+
+			mjclass.$isMooJoeClass = true;
+			mjclass.type = function(item) {
 				return this === item.$family;
 			}
 
-			moojoe_class.rules = rules;
-			moojoe_class.properties = properties;
+			mjclass.rules = rules;
+			mjclass.properties = properties;
 
-			var methods = {
-				$family: moojoe_class,
-
-				getMapped: function(property) {
-					if(selectors[property])
-						return this.element.getElement(selectors[property]);
-					else
-						return this.element;
-				}
-			};
-
-			properties.each(function(value, property) {
-				if(Function.type(value) && !property.test('^[gs]et '))
-					methods[property] = value;
-			});
-
-			moojoe_class.implement(methods);
-
-			return moojoe_class;
+			return mjclass;
 		}
 	})
 };
@@ -150,61 +171,17 @@ MooJoe.Class.type = function(item) {
 }
 
 Element.implement({
-	toObject: function(moojoe_class) {
-		var o = new moojoe_class();
+	toObject: function(mjclass) {
+		var o = new mjclass();
 		o.attach(this);
-
 		return o;
 	}
 });
 
 Elements.implement({
-	toObject: function(moojoe_class) {
+	toObject: function(mjclass) {
 		return this.map(function(element) {
-			return element.toObject(moojoe_class);
+			return element.toObject(mjclass);
 		});
 	}
 });
-
-
-/*					this.element = $(element);
-					this.reflections = {};
-
-					$H(definitions).each((function(rule, property) {
-						var element, p = 'html', t = String;
-
-						if($type(rule) == 'string')
-							element = rule;
-
-						else if($type(rule) == 'array') {
-							element = rule.shift();
-
-							rule = rule.link({
-								type: function(i) {
-									return Native.type(i) || Class.type(i);
-								},
-								property: String.type
-							});
-
-							if(rule.type) t = rule.type;
-							if(rule.property) p = rule.property;
-						}
-
-						var ref = this.reflections[property] = {
-							element: this.element.getElement(element),
-							property: p, type: t
-						};
-
-						if(Native.type(ref.type))
-							this[property] = new ref.type(
-								ref.element.get(ref.property)
-							);
-						else if(Class.type(ref.type))
-							this[property] = new ref.type(ref.element);
-						else if(Function.type(ref.type))
-							this[property] = ref.type(
-								ref.element.get(ref.property), ref.element
-							);
-
-					}).bind(this));
-				},*/
