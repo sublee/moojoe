@@ -356,3 +356,45 @@ describe('Complex Mapping', {
 			.should_be('Churchill');
 	}
 });
+
+describe('Array Mapping', {
+
+	'Generate Object': function() {
+		family = $('family').toObject(Family);
+		value_of(Family.type(family)).should_be_true();
+	},
+
+	'Array Property': function() {
+		value_of($type(family.get('members'))).should_be('array');
+		value_of(Person.type(family.get('members')[0])).should_be_true();
+		value_of(family.get('members').get(0))
+			.should_be(family.get('members')[0]);
+	},
+
+
+	'Set to Item of Array': function() {
+		family.get('members').set(1, new Person(
+			new Name('Uma Karuna', 'Thurman'),
+			38, new Date(1970, 4, 29),
+			'http://tbn0.google.com/images?q=tbn:Oy_wn6aZPnxSVM:' +
+			'http://www.hotterbabes.com/celebrities/pictures/UmaThurman/' +
+			'nude/uma_thurman_003.jpg'
+		));
+
+		value_of(family.get('members')[1].get('name').get('last'))
+			.should_be('Thurman');
+	},
+
+	'Swap Object Property': function() {
+		var head = family.get('head');
+
+		family.set('head', family.get('members')[0]);
+		family.get('members').set(0, head);
+
+		value_of(family.get('members')[0].get('name').get('first'))
+			.should_be('Johnny');
+
+//		value_of($$('#family .head .first')[0]).should_be('Vanessa');
+//		value_of($$('#family .members .first')[0]).should_be('Johnny');
+	}
+});
