@@ -1,4 +1,20 @@
 MooJoe = {
+	Array: new Class({
+		initialize: function(array) {
+			array.get = function(index) {
+				return this[index];
+			}
+			array.set = function(index, value) {
+				this[index].attached.each(function(attached) {
+					value.attach(attached);
+				});
+				this[index] = value;
+				return this;
+			}
+			return array;
+		}
+	}),
+
 	Class: new Class({
 		initialize: function(rules, properties) {
 			properties = $H(properties);
@@ -61,7 +77,7 @@ MooJoe = {
 
 					this.attached.push(element);
 
-					this[this.isEmpty ? 'pull' : 'push']();
+					this[this.isEmpty ? 'pull' : 'push'](undefined, element);
 
 					this.isEmpty = false;
 
@@ -89,50 +105,81 @@ MooJoe = {
 					return this;
 				},
 
-				push: function(property, value) {
+				push: function(property, element) {
 					if(!$defined(property)) rules.each(function(_, property) {
-						this.push(property, this.get(property));
+						this.push(property, element);
 					}, this);
 
 					else {
 						var rule = rules.get(property);
+						var value = this.get(property);
 
-						this.attached.each(function(element) {
+						var push = function(element) {
 							if(rule.selector)
 								element = element.getElement(rule.selector);
 
-							if(MooJoe.Class.type(rule.type))
-								value.attach(element);
-							else
-								element.set(rule.property, value);
+							if(element) {
+								if(MooJoe.Class.type(rule.type))
+									value.attach(element);
+								else
+									element.set(rule.property, value);
 
-							if(Function.type(this['on push']))
-								this['on push'](element);
-						}, this);
+								if(Function.type(this['on push']))
+									this['on push'](element);
+							}
+						}
+
+						if(element) push.run(element, this);
+						else this.attached.each(push, this);
 					}
 				},
 
-				pull: function(property) {
+				pull: function(property, element) {
 					if(!$defined(property)) rules.each(function(_, property) {
-						this.pull(property);
+						this.pull(property, element);
 					}, this);
 
 					else {
 						var rule = rules.get(property);
-						var element = this.attached.getLast();
-						if(rule.selector)
-							element = element.getElement(rule.selector);
+						element = element || this.attached.getLast();
 
-						var value = element.get(rule.property);
+						var casted = function(element, value) {
+							if(Native.type(rule.type))
+								return new rule.type(value);
+							else if(Function.type(rule.type))
+								return rule.type(value);
+							else if(MooJoe.Class.type(rule.type))
+								return element.toObject(rule.type);
+							else
+								return value;
+						}
 
-						if(Native.type(rule.type))
-							value = new rule.type(value);
-						else if(Function.type(rule.type))
-							value = rule.type(value);
-						else if(MooJoe.Class.type(rule.type))
-							value = element.toObject(rule.type);
+						if(rule.plural) {
+							if(rule.selector) var elements =
+								element.getElements(rule.selector);
 
-						this.set(property, value);
+							if(elements)
+								this.set(property, new MooJoe.Array(
+									elements.map(function(el) {
+										return casted(el,
+											el.get(rule.property)
+										);
+									})
+								));
+							else
+								this.set(property, new MooJoe.Array([]));
+						}
+						else {
+							if(rule.selector)
+								element = element.getElement(rule.selector);
+
+							if(element) var value = casted(element,
+								element.get(rule.property)
+							);
+							else var value = null;
+
+							this.set(property, value);
+						}
 					}
 				},
 
@@ -147,14 +194,15 @@ MooJoe = {
 					if(Function.type(this['set ' + property]))
 						return this['set ' + property](value);
 
+					this.properties.set(property, value);
+
 					if(!this.isEmpty) {
-						if(rules.has(property)) this.push(property, value);
+						if(rules.has(property)) this.push(property);
 
 						if(Function.type(this['on set ' + property]))
 							this['on set ' + property](value);
 					}
 
-					this.properties.set(property, value);
 					return this;
 				},
 
