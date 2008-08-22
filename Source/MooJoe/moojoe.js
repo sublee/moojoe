@@ -57,14 +57,11 @@ MooJoe = {
 
 					var old = element.retrieve('attached')
 					if(old) old.detach(element);
-
 					element.store('attached', this);
 
 					this.attached.push(element);
 
-					rules.each(function(rule, property) {
-						this.sync(property, this.get(property));
-					}, this);
+					this[this.isEmpty ? 'pull' : 'push']();
 
 					this.isEmpty = false;
 
@@ -92,32 +89,51 @@ MooJoe = {
 					return this;
 				},
 
-				sync: function(property, value) {
-					var just_import = !$defined(value) &&
-						this.isEmpty && this.isAttached();
+				push: function(property, value) {
+					if(!$defined(property)) rules.each(function(_, property) {
+						this.push(property, this.get(property));
+					}, this);
 
-					var rule = rules.get(property);
+					else {
+						var rule = rules.get(property);
 
-					this.attached.each(function(element) {
-						if(rule.selector)
-							element = element.getElement(rule.selector);
+						this.attached.each(function(element) {
+							if(rule.selector)
+								element = element.getElement(rule.selector);
 
-						if(just_import) this.set(
-							property,
-							element.get(rule.property),
-							just_import
-						);
-
-						else {
 							if(MooJoe.Class.type(rule.type))
 								value.attach(element);
 							else
 								element.set(rule.property, value);
-						}
 
-						if(Function.type(this['on sync']))
-							this['on sync'](element);
+							if(Function.type(this['on push']))
+								this['on push'](element);
+						}, this);
+					}
+				},
+
+				pull: function(property) {
+					if(!$defined(property)) rules.each(function(_, property) {
+						this.pull(property);
 					}, this);
+
+					else {
+						var rule = rules.get(property);
+						var element = this.attached.getLast();
+						if(rule.selector)
+							element = element.getElement(rule.selector);
+
+						var value = element.get(rule.property);
+
+						if(Native.type(rule.type))
+							value = new rule.type(value);
+						else if(Function.type(rule.type))
+							value = rule.type(value);
+						else if(MooJoe.Class.type(rule.type))
+							value = element.toObject(rule.type);
+
+						this.set(property, value);
+					}
 				},
 
 				get: function(property) {
@@ -127,12 +143,16 @@ MooJoe = {
 					return this.properties.get(property);
 				},
 
-				set: function(property, value, just_import) {
+				set: function(property, value) {
 					if(Function.type(this['set ' + property]))
 						return this['set ' + property](value);
 
-					else if(rules.has(property) && !just_import)
-						this.sync(property, value);
+					if(!this.isEmpty) {
+						if(rules.has(property)) this.push(property, value);
+
+						if(Function.type(this['on set ' + property]))
+							this['on set ' + property](value);
+					}
 
 					this.properties.set(property, value);
 					return this;
