@@ -29,7 +29,7 @@ describe('Class Definition', {
 			'on attach': function(element) {
 				element.tween('background-color', ['#d2e0e6', '#f3f1f1']);
 			},
-			'on sync': function(element) {
+			'on push': function(element) {
 				element.tween('background-color', ['#cfe773', '#f3f1f1']);
 			}
 		});
@@ -41,13 +41,13 @@ describe('Class Definition', {
 	'Complex Mapping Class': function() {
 		Person = new MooJoe.Class({
 			name: ['.name', Name],
-			gender: ['', 'class', function(classes) {
+/*			gender: ['', 'class', function(classes) {
 				classes = classes.split(' ');
 				return classes.link({ gender: function(text) {
 					return ['male', 'female'].contains(text);
 				}}).gender;
 			}],
-			age: ['.age', Number],
+*/			age: ['.age', Number],
 			birthday: ['.age', 'title', Date],
 			picture: ['.picture', String, 'src']
 		}, {
@@ -58,6 +58,25 @@ describe('Class Definition', {
 			younger: function() {
 				this.set('age', this.get('age') - 1);
 				return this;
+			},
+			'on set birthday': function(birthday) {
+				birthday = new Date(birthday);
+
+				var now = new Date('Sep 1, 2008');
+				var age = now.getYear() - birthday.getYear();
+
+				if(now.getMonth() < birthday.getMonth() || (
+					now.getMonth() == birthday.getMonth() &&
+					now.getDate() < birthday.getDate()
+				)) age --;
+
+				this.set('age', age);
+			},
+			'on attach': function(element) {
+				element.tween('background-color', ['#d2e0e6', '#f3f1f1']);
+			},
+			'on push': function(element) {
+				element.tween('background-color', ['#cfe773', '#f3f1f1']);
 			}
 		});
 
@@ -65,6 +84,13 @@ describe('Class Definition', {
 			head: ['.head .person', Person],
 			members: ['.members .person', [Person]],
 			'members.joined': ['.members', 'title', Date]
+		}, {
+			'on attach': function(element) {
+				element.tween('background-color', ['#d2e0e6', '#f3f1f1']);
+			},
+			'on push': function(element) {
+				element.tween('background-color', ['#cfe773', '#f3f1f1']);
+			}
 		});
 
 		value_of(MooJoe.Class.type(Person)).should_be_true();
@@ -88,11 +114,11 @@ describe('Class Definition', {
 				selector: '.name', property: 'html',
 				type: Name, plural: false
 			},
-			gender: {
+/*			gender: {
 				selector: '', property: 'class',
 				type: function() {}, plural: false
 			},
-			age: {
+*/			age: {
 				selector: '.age', property: 'html',
 				type: Number, plural: false
 			},
@@ -126,18 +152,20 @@ describe('Class Definition', {
 		value_of(Name.properties).should_be($H({
 			'get korean name': function() {}, 'get english name': function() {},
 			'set korean name': function() {}, 'set english name': function() {},
-			'on attach': function() {}, 'on sync': function() {}
+			'on attach': function() {}, 'on push': function() {}
 		}));
 
 		value_of(Person.properties).should_be($H({
-			older: function() {}, younger: function() {}
+			older: function() {}, younger: function() {},
+			'on set birthday': function() {},
+			'on attach': function() {}, 'on push': function() {}
 		}));
 	}
 });
 
 describe('Detached Object', {
 
-	'Create': function() {
+	'Create new Object': function() {
 		new_name = new Name('Dachimawa', 'Lee');
 
 		value_of(Name.type(new_name)).should_be_true();
@@ -222,7 +250,7 @@ describe('Detached Object', {
 
 describe('Element to Object', {
 
-	'Create': function() {
+	'Generate Object': function() {
 		attached_name = $$('#names .name')[2].toObject(Name);
 
 		value_of(Name.type(attached_name)).should_be_true();
@@ -230,7 +258,7 @@ describe('Element to Object', {
 		value_of(attached_name.isEmpty).should_be_false();
 	},
 
-	'Contain Properties of Element': function() {
+	'Mapping Properties': function() {
 		value_of(attached_name.get('english name')).should_be('Johnny Depp');
 	},
 
@@ -272,180 +300,59 @@ describe('Element to Object', {
 	}
 });
 
-/*
-describe('SimpleMapping', {
+describe('Complex Mapping', {
 
-	'should be empty': function() {
-		empty_name = new Name();
-		value_of(empty_name.isEmpty).should_be_true();
-	},
-
-	'should attach to element': function() {
-		value_of($$('#names .name')[1].getFirst().get('html')
-		).should_be('Chaeyeong');
-
-		new_name.attach($$('#names .name')[1]);
-
-		value_of($$('#names .name .first')[1].get('html')).should_be(
-			new_name.get('first')
-		);
-	},
-
-	'should be attached': function() {
-		dom_name = $$('#names .name')[0].toObject(Name);
-		empty_name.attach($$('#names .name')[2]);
-
-		value_of(new_name.isAttached()).should_be_true();
-		value_of(dom_name.isAttached()).should_be_true();
-		value_of(empty_name.isAttached()).should_be_true();
-
-		value_of(dom_name.isEmpty).should_be_false();
-		value_of(empty_name.isEmpty).should_be_false();
-	},
-
-	'should return mapped element': function() {
-		value_of(dom_name.getMapped('first').getLast()).should_be(
-			$$('#names .name .first')[0]
-		);
-	},
-
-	'should return same property with DOM': function() {
-		value_of(dom_name.get('first')).should_be('Heungsub');
-	},
-
-	'should change property DOM also': function() {
-		dom_name.set('first', 'Haesam');
-
-		value_of(dom_name.get('first')).should_be('Haesam');
-		value_of($$('#names .name .first')[0].get('html')).should_be(
-			dom_name.get('first')
-		);
-
-		var names = [
-			'apple', 'banana', 'lemon', 'tomato', 'grapes', 'paprika'
-		];
-		for(var i = 0, n = 'start!'; i < 100; ++i, n = names.getRandom()) {
-			empty_name.set('last', n);
-			value_of(empty_name.get('last')).should_be(n);
-			value_of($$('#names .name .last')[2].get('html')).should_be(n);
-		}
-	},
-
-	'should detach from element': function() {
-		dom_name.detach();
-		value_of(dom_name.isAttached()).should_be_false();
-
-		dom_name.set('first', 'Gatomon');
-
-		value_of(dom_name.get('first')).should_be('Gatomon');
-		value_of($$('#names .name .first')[0].get('html')).should_be('Haesam');
-	},
-
-	'should reattach to element': function() {
-		dom_name.attach($$('#names .name')[0]);
-		value_of(dom_name.isAttached()).should_be_true();
-
-		value_of($$('#names .name .first')[0].get('html')).should_be('Gatomon');
-	},
-
-	'should be multiple mapping': function() {
-		var some_name = new Name('Test', 'Done');
-
-		some_name.attach($$('#names .name'));
-
-		value_of($$('#names .name .first')[0].get('html')).should_be('Test');
-		value_of($$('#names .name .last')[2].get('html')).should_be('Done');
-
-		some_name.set('first', 'Well');
-	}
-});
-
-describe('ComplexMapping', {
-
-	'before all': function() {
+	'Generate Object': function() {
 		person = $('person').toObject(Person);
+		value_of(Person.type(person)).should_be_true();
 	},
 
-	'should map native type': function() {
-		value_of(Number.type(person.get('age'))).should_be_true();
-		value_of(Date.type(person.get('birthday'))).should_be_true();
-		value_of(String.type(person.get('picture'))).should_be_true();
+	'Mapping Native type Properties': function() {
+		value_of($type(person.get('picture'))).should_be('string');
+//		value_of($type(person.get('gender'))).should_be('string');
+		value_of($type(person.get('age'))).should_be('number');
+		value_of($type(person.get('birthday'))).should_be('date');
 	},
 
-	'should map moojoe class': function() {
+	'Mapping Properties instance of MooJoe Class': function() {
 		value_of(Name.type(person.get('name'))).should_be_true();
-		value_of(person.get('name').get('first')).should_be('Heungsub');
-
-		person.get('name').set('last', 'Kim');
-		value_of(person.get('name').get('last')).should_be('Kim');
 	},
 
-	'should run custom function': function() {
-		value_of(person.get('gender')).should_be('male');
+	'Change Property and Synchronize': function() {
+		person.set('picture', 'http://me2day.net/images/user/sub/' +
+			'profile_20080808154048.png');
+
+		value_of($$('#person img')[0].get('src')).should_be(
+			'http://me2day.net/images/user/sub/profile_20080808154048.png'
+		);
 	},
 
-	'should change property DOM also': function() {
-		var new_src
-			= 'http://farm1.static.flickr.com/100/304279073_59eaccb6e5_s.jpg';
-
-		person.set('picture', new_src);
-
-		value_of(person.get('picture')).should_be(new_src);
-		value_of($('person').getElement('img').get('src')).should_be(new_src);
-	},
-
-	'should change object property DOM also': function() {
-		var new_new_name = new Name('Hngsub', 'Yi');
-
-		person.set('name', new_new_name);
-
-		value_of(person.get('name').get('first'))
-			.should_be(new_new_name.get('first'));
-
-		value_of(person.get('name')).should_be(new_new_name);
-
-		value_of($('person').getElement('.name .first').get('html'))
-			.should_be(new_new_name.get('first'));
-	},
-
-	'should call method': function() {
+	'Custom Method': function() {
 		person.older();
 		value_of(person.get('age')).should_be(19);
+		value_of($$('#person .age')[0].get('html')).should_be(19);
 	},
 
-	'should pass property': function() {
-		var hamster = $('family').getElement('.head .person').toObject(Person);
+	'On Setter Event': function() {
+		person.set('birthday', new Date('Dec 30, 1976'));
 
-		value_of(hamster.get('age')).should_be_undefined();
-		value_of(hamster.get('birthday')).should_be_undefined();
+		value_of(person.get('birthday')).should_be(new Date('Dec 30, 1976'));
+		value_of(person.get('age')).should_be(31);
+	},
+
+	'Change Property of Object Property': function() {
+		person.get('name').set('last', 'Yi');
+
+		value_of(person.get('name').get('last')).should_be('Yi');
+		value_of($$('#person .name .last')[0].get('html')).should_be('Yi');
+	},
+
+	'Change Object Property': function() {
+		person.set('name', new_name);
+		value_of(person.get('name')).should_be(new_name);
+
+		new_name.set('first', 'Churchill');
+		value_of($$('#person .name .first')[0].get('html'))
+			.should_be('Churchill');
 	}
 });
-
-describe('ArrayMapping', {
-
-	'before all': function() {
-		family = {get:$empty, set:$empty};//$('family').toObject(Family);
-	},
-
-	'should map moojoe class': function() {
-		value_of(Person.type(family.get('head'))).should_be_true();
-		value_of(family.get('head').get('name').get('first'))
-			.should_be('Mungham');
-
-		family.get('head').get('name').set('last', 'Kim');
-		value_of(family.get('head').get('name').get('last')).should_be('Kim');
-	},
-
-	'should map array contains object': function() {
-		value_of(Array.type(family.get('members'))).should_be_true();
-		value_of(Person.type(family.get('members')[0])).should_be_true();
-
-		value_of(family.get('members')[0].get('name').get('first'))
-			.should_be('Koko');
-
-		family.get('members')[0].get('name').set('last', 'Kim');
-		value_of(family.get('members')[0].get('name').get('last'))
-			.should_be('Kim');
-	}
-});
-*/
