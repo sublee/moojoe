@@ -39,6 +39,17 @@ describe('Class Definition', {
 	},
 
 	'Complex Mapping Class': function() {
+		var person_template = new Element('div', { 'class': 'person' });
+
+		(new Element('p', {
+			'class': 'name'
+		})).inject(person_template);
+
+		(new Element('p', {
+			'class': 'age',
+			title: 'Thu Dec 30 1976 00:00:00 GMT+0900 (KST)'
+		})).inject(person_template);
+
 		Person = new MooJoe.Class({
 			name: ['.name', Name],
 /*			gender: ['', 'class', function(classes) {
@@ -77,12 +88,14 @@ describe('Class Definition', {
 			},
 			'on push': function(element) {
 				element.tween('background-color', ['#cfe773', '#f3f1f1']);
-			}
+			},
+			$template: person_template
 		});
 
 		Family = new MooJoe.Class({
 			head: ['.head .person', Person],
 			members: ['.members .person', [Person]],
+			servants: ['.servants .person', [Person]],
 			'members.joined': ['.members', 'title', Date]
 		}, {
 			'on attach': function(element) {
@@ -141,6 +154,10 @@ describe('Class Definition', {
 				selector: '.members .person', property: 'html',
 				type: Person, plural: true
 			},
+			servants: {
+				selector: '.servants .person', property: 'html',
+				type: Person, plural: true
+			},
 			'members.joined': {
 				selector: '.members', property: 'title',
 				type: Date, plural: false
@@ -160,6 +177,11 @@ describe('Class Definition', {
 			'on set birthday': function() {},
 			'on attach': function() {}, 'on push': function() {}
 		}));
+	},
+
+	'Contain Template': function() {
+		value_of(Name.template).should_be_null();
+		value_of(Element.type(Person.template)).should_be_true();
 	}
 });
 
@@ -394,7 +416,70 @@ describe('Array Mapping', {
 		value_of(family.get('members')[0].get('name').get('first'))
 			.should_be('Johnny');
 
-//		value_of($$('#family .head .first')[0]).should_be('Vanessa');
-//		value_of($$('#family .members .first')[0]).should_be('Johnny');
-	}
+		value_of($$('#family .head .first')[0].get('html'))
+			.should_be('Vanessa');
+		value_of($$('#family .members .first')[0].get('html'))
+			.should_be('Johnny');
+	},
+
+	'Inject a Item into Last': function() {
+		var members = family.get('members');
+
+		var new_member = new Person(
+			new Name('Tak', 'Tak'),
+			25, new Date(2002, 1, 1),
+			'http://farm4.static.flickr.com/3046/2877747145_8fe51c200e_s.jpg'
+		);
+
+		members.inject(new_member);
+		value_of(members.get(members.length - 1)).should_be(new_member);
+
+		var other_member = new Person(
+			new Name('Moong', 'Jung'),
+			25, new Date(2000, 10, 10),
+			'http://farm4.static.flickr.com/3165/2878586798_539afbd003_s.jpg'
+		);
+
+		members.inject(other_member);
+		value_of(members.get(members.length - 1)).should_be(other_member);
+		value_of(members.get(members.length - 2)).should_be(new_member);
+
+		value_of($$('#family .members .first')[members.length - 1].get('html'))
+			.should_be('Moong');
+		value_of($$('#family .members .first')[members.length - 2].get('html'))
+			.should_be('Tak');
+	},
+
+	'Inject a Item into any Index': function() {
+		var members = family.get('members');
+
+		var new_member = new Person(
+			new Name('Mil', 'Ky'),
+			1, new Date(2008, 9, 9),
+			'http://farm4.static.flickr.com/3042/2864479565_d3e9907b9b_s.jpg'
+		);
+
+		var first_member = members.get(0);
+		var second_member = members.get(1);
+		var last_member = members.getLast();
+
+		members.inject(new_member, 1);
+		value_of(members.get(0)).should_be(first_member);
+		value_of(members.get(1)).should_be(new_member);
+		value_of(members.get(2)).should_be(second_member);
+		value_of(members.getLast()).should_be(last_member);
+	}/*,
+
+	'Generate new Element from Template': function() {
+		var servants = family.get('servants');
+
+		var new_servant = new Person(
+			new Name('Kunta', 'Kinte'),
+			56, new Date(1976, 5, 5),
+			'http://farm4.static.flickr.com/3184/2679786270_7fba9c22a4_s.jpg'
+		);
+
+		servants.inject(new_servant);
+		value_of(servants.length).should_be(1);
+	}*/
 });
