@@ -1,6 +1,7 @@
 MooJoe = {
 	Array: new Class({
-		initialize: function(array) {
+		initialize: function(array, attached) {
+			array.attached = attached || [];
 			array.get = function(index) {
 				return this[index];
 			}
@@ -11,13 +12,58 @@ MooJoe = {
 				this[index] = value;
 				return this;
 			}
+			array.inject = function(value, index) {
+				index = index || this.length;
+
+				if(this.length && index <= this.length) {
+					var src = this.attached[index - 1];
+					var attached = src.clone();
+					var args = [src, 'after'];
+				}
+/*				else if(Element.type(value.$family.template)) {
+					var attached = $(value.$family.template).clone();
+					var args = [attached];
+				}
+*/				else
+					return false;
+
+				if(index < this.length) {
+					for(var i = this.length; i > index; -- i) {
+						this[i] = this[i - 1];
+						this.attached[i] = this.attached[i - 1];
+					}
+				}
+
+				value.attach(attached);
+				attached.inject.run(args, attached);
+
+				this[index] = value;
+				this.attached[index] = attached;
+			}
+
 			return array;
 		}
 	}),
 
 	Class: new Class({
+
 		initialize: function(rules, properties) {
-			properties = $H(properties);
+			var template = null;
+
+			properties = $H(properties).filter(function(item, key) {
+				var matched = key.match(/^\$(.+)/);
+
+				if(!matched)
+					return true;
+
+				else switch(matched[1]) {
+					case 'template':
+						template = $(item);
+						break;
+				}
+				return false;
+
+			});
 
 			rules = $H(rules).map(function(rule, name) {
 				var selector, property = 'html', type = String, plural = false;
@@ -164,7 +210,7 @@ MooJoe = {
 										return casted(el,
 											el.get(rule.property)
 										);
-									})
+									}), elements
 								));
 							else
 								this.set(property, new MooJoe.Array([]));
@@ -215,13 +261,16 @@ MooJoe = {
 			});
 
 			var extension = { $family: mjclass };
+
 			properties.each(function(value, name) {
 				if(Function.type(value)) this[name] = value;
 			}, extension);
 
 			mjclass.implement(extension);
 
-			mjclass.$isMooJoeClass = true;
+			mjclass.template = template;
+
+			mjclass.isMooJoeClass = true;
 			mjclass.type = function(item) {
 				return this === item.$family;
 			}
@@ -235,7 +284,7 @@ MooJoe = {
 };
 
 MooJoe.Class.type = function(item) {
-	return !!item.$isMooJoeClass;
+	return !! item.isMooJoeClass;
 }
 
 Element.implement({
