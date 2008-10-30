@@ -14,7 +14,7 @@ var Builder = {
 	root: '../',
 
 	paths: {
-		source: 'Source',
+		source: '.',
 		specs: 'Specs'
 	},
 
@@ -26,11 +26,11 @@ var Builder = {
 
 	scripts: {
 		source: {
-			'MooJoe': ['moojoe']
+			'.': ['MooJoe']
 		},
 
 		specs: {
-			'MooJoe': ['moojoe']
+			'.': ['MooJoe.specs']
 		}
 	},
 
